@@ -3,7 +3,7 @@ services:
   rocketchat:
     image: rocketchat/rocket.chat:latest
     volumes:
-      - /srv/rocketchat/uploads:/app/uploads
+      - /opt/rocketchat/uploads:/app/uploads
     environment:
       - PORT=3000
       - ROOT_URL=http://localhost:3000
@@ -19,14 +19,10 @@ services:
     labels:
       - "traefik.backend=rocketchat"
       - "traefik.frontend.rule=Host: your.domain.tld"
-    depends_on:
-      - mongo-init-replica
-      - gitlab
-
   mongo:
     image: mongo:3.2
     volumes:
-     - /srv/mongo/data/db:/data/db
+     - /opt/mongo/data/db:/data/db
   #    - ./data/dump:/dump
     command: mongod --smallfiles --oplogSize 128 --replSet rs0
     labels:
@@ -45,30 +41,34 @@ services:
     image: rocketchat/hubot-rocketchat:latest
     environment:
       - ROCKETCHAT_URL=rocketchat:3000
-      - ROCKETCHAT_ROOM=GENERAL
+      - ROCKETCHAT_ROOM=general
       - ROCKETCHAT_USER=bot
       - ROCKETCHAT_PASSWORD=botpassword
       - BOT_NAME=bot
+      - RESPOND_TO_DM=true
+      - LISTEN_ON_ALL_PUBLIC=true
   # you can add more scripts as you'd like here, they need to be installable by npm
-      - EXTERNAL_SCRIPTS=hubot-help,hubot-seen,hubot-links,hubot-diagnostics
+      - EXTERNAL_SCRIPTS=hubot-help,hubot-seen,hubot-links,hubot-diagnostics,hubot-gitsy
     links:
       - rocketchat:rocketchat
     labels:
-      - "traefik.enable=false"
+      - traefik.backend=hubot
+      - traefik.frontend.rule=Host:hubot.bleemeo.work
+      - traefik.port=8080
     volumes:
-      - ./scripts:/home/hubot/scripts
+      - /opt/rocketchat/hubot/scripts:/home/hubot/scripts
   # this is used to expose the hubot port for notifications on the host on port 3001,   e.g. for hubot-jenkins-notifier
     ports:
       - 3001:8080
   gitlab:
     image: 'gitlab/gitlab-ce'
     links:
-      - mongo:mongo
+      - rocketchat:rocketchat
     ports:
       - 443:443
       - 80:80
       - 22:22
     volumes:
-      - /srv/gitlab/config:/etc/gitlab \
-      - /srv/gitlab/logs:/var/log/gitlab \
-      - /srv/gitlab/data:/var/opt/gitlab \
+      - /opt/gitlab/config:/etc/gitlab \
+      - /opt/gitlab/logs:/var/log/gitlab \
+      - /opt/gitlab/data:/var/opt/gitlab \
